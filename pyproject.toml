@@ -7,10 +7,16 @@ readme = "README.md"
 
 [tool.poetry.dependencies]
 python = "^3.12"
+pylint = "^3.2.7"
 
 
 [tool.poetry.group.dev.dependencies]
 pylint = "^3.2.7"
+pytest = "^8.3.3"
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+
 
 [build-system]
 requires = ["poetry-core"]
