@@ -1,56 +1,54 @@
 import random
+from collections import deque
 
 class KiviSaksetPaperi:
-    def __init__(self):
-        #Konstruktori
+    def __init__(self, degree=10):
         self.choices = ['kivi', 'paperi', 'sakset']
         self.player_score = 0
         self.ai_score = 0
-        self.last_player_move = None 
+        self.last_player_move = None
+        self.degree = degree #Markovin ketjun aste
+        self.move_history = MoveHistory(self.degree)  #deque korvattu omalla MoveHistory luokalla alempana
+        self.matrix = {}
 
-
-        #Luodaan 3x3 matriisi missä kaikilla vastauksilla on sama todennäköisyys
-        self.matrix = {
-            'kivi': {'kivi': 1/3, 'paperi': 1/3, 'sakset': 1/3},
-            'paperi': {'kivi': 1/3, 'paperi': 1/3, 'sakset': 1/3},
-            'sakset': {'kivi': 1/3, 'paperi': 1/3, 'sakset': 1/3}
-        }
-
-
-    def update_matrix(self, prev_move, current_move):        
+    def update_matrix(self, move_history, current_move):
         #Päivitetään matriisin todennäköisyydet, jotka perustuu aikaisempiin valintoihin
+        move_history_key = tuple(move_history.get_last_moves(self.degree))
+        if move_history_key not in self.matrix:
+            self.matrix[move_history_key] = {choice: 1/3 for choice in self.choices}
         for move in self.choices:
-            self.matrix[prev_move][move] *= 0.9
+            self.matrix[move_history_key][move] *= 0.7
         #Ylempää ja alempaa arvoa muuttamalla tietokone valitsaa agressiivisemmin
-        self.matrix[prev_move][current_move] += 0.1
-
-    
+        self.matrix[move_history_key][current_move] += 0.3
 
     def get_ai_choice(self):
         #Tietokone valitsee todennäköisyyksiin perustuvan vaihtoehdon
-        #Aluksi valinta on satunnainen koska matriisi on koskematon
-        if self.last_player_move is None:            
-            return random.choice(self.choices)
-        else:
-            #Ennustetaan matriisin perusteella pelaajan seuraava valinta
-            next_move_probs = self.matrix[self.last_player_move]
-            
-            
-            total = sum(next_move_probs.values())
-            normalized_probs = [prob / total for prob in next_move_probs.values()]
-            predicted_player_move = random.choices(list(next_move_probs.keys()), normalized_probs)
+        #atm_degree on apuna, kun peliä ei ole pelattu tarpeeksi monta kierrosta
+        atm_degree = self.degree
 
-            #Tekoäly valitsee järkevän vaihtoehdon perustuen pelaajan ennustettuun valintaan
-            if predicted_player_move == 'kivi':
-                return 'paperi'  #Paperi voittaa kiven
-            elif predicted_player_move == 'paperi':
-                return 'sakset'  #Sakset voittaa paperin
-            else:
-                return 'kivi'  #Kivi voittaa sakset
+        while atm_degree > 0:
+            move_history_key = tuple(self.move_history.get_last_moves(atm_degree))
+            if move_history_key in self.matrix:
+                print(f"Aste tällä hetkellä: {atm_degree}")
+                next_move_probs = self.matrix[move_history_key]
+                total = sum(next_move_probs.values())
+                normalized_probs = [prob / total for prob in next_move_probs.values()]
+                predicted_player_move = random.choices(list(next_move_probs.keys()), normalized_probs)[0]
 
+                #Tekoäly valitsee järkevän vaihtoehdon perustuen ennustettuun pelaajan valintaan
+                if predicted_player_move == 'kivi':
+                    return 'paperi'     #Paperi voittaa kiven
+                elif predicted_player_move == 'paperi':
+                    return 'sakset'     #Sakset voittaa paperin
+                else:
+                    return 'kivi'       #Kivi voittaa sakset
+            atm_degree -= 1
+
+        print("Satunnainen valinta") #testausta varten jos tekoäly valitsee satunnaisesti
+        return random.choice(self.choices)
 
     def get_winner(self, player, ai):
-        #Voittajan valinta
+        #voittajan valinnan logiikka
         if player == ai:
             return "Tasapeli!"
         elif (player == 'kivi' and ai == 'sakset') or \
@@ -63,15 +61,7 @@ class KiviSaksetPaperi:
             return 'Tietokone voitti!'
 
 
-    def display_matrix(self):
-        #testi käyttöön jotta voi nähdä matriisin sen hetkisen tilanteen todennäköisyyksille
-        print("\nMatriisi tällä hetkellä: ")
-        for move, transitions in self.matrix.items():
-            print(f"  {move}: {transitions}")
-        print()    
-
-
-    def play(self):        
+    def play(self):
         print("Tämä on kivi, sakset ja paperi!")
         while True:
             player_choice = input("Valitse kivi, paperi, tai sakset (Kirjoita 'lopeta' poistuaksesi ohjelmasta): ").lower()
@@ -81,23 +71,46 @@ class KiviSaksetPaperi:
             if player_choice not in self.choices:
                 print("Väärä syöte, kokeile uudestaan!")
                 continue
-        
+
             ai_choice = self.get_ai_choice()
-            print(f"Tietokone valitsi: {ai_choice}!")            
-            
+            print(f"Tietokone valitsi: {ai_choice}!")
+
             result = self.get_winner(player_choice, ai_choice)
             print(result)
             print(f"Tulokset: - Pelaaja: {self.player_score}, - Tietokone: {self.ai_score}")
+
+            #päivitetään historia ja matriisi
+            self.move_history.add_move(player_choice)
+            if len(self.move_history) == self.degree:
+                self.update_matrix(self.move_history, player_choice)
+
+
+
+#MoveHistory luokka            
+class MoveHistory:
+    def __init__(self, length):
+        #length on maximi määrä historiassa säilytettäviä liikkeitä, eli käytännössä Markovin ketjun aste
+        self.length = length  
+        self.history = []
+
+    def add_move(self, move):
+        #jos historia ylittää asteen niin poistetaan vanhin liike ja lisätään uusi
+        if len(self.history) >= self.length:
+            self.history.pop(0)  
+
+        self.history.append(move)
+
+
+    def get_last_moves(self, x):
+        #palauttaa x määrän liikkeitä historiasta
+        if x > len(self.history):
+            return self.history  #palauttaa koko historian jos x arvo on isompi kuin historia
+        return self.history[-x:]
+
+    def __len__(self):
+        return len(self.history)
             
-            #matriisin päivitys
-            if self.last_player_move is not None:
-                self.update_matrix(self.last_player_move, player_choice)
-            
-            #Testausta varten matriisin tulostus ruudulle
-            self.display_matrix()
-            
-            self.last_player_move = player_choice
 
 if __name__ == "__main__":
-    game = KiviSaksetPaperi()
+    game = KiviSaksetPaperi(degree=10) #annetaan markovin ketjun asteeksi 10 niinkuin aiheenvalinnan linkissä
     game.play()

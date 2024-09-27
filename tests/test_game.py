@@ -1,4 +1,5 @@
 import pytest
+import random
 from src.game import KiviSaksetPaperi
 
 
@@ -51,3 +52,54 @@ def test_quit(monkeypatch):
     monkeypatch.setattr('builtins.input', lambda _: 'lopeta')    
     result = game.play()
     assert result is None, "Pelin pitäisi loppua 'lopeta' komennon jälkeen"
+
+
+
+
+#uusia testejä tekoälyn toimivuutta varten
+
+#matriisin päivitys joka kierroksen jälkeen
+def test_matrix_updated():
+    game = KiviSaksetPaperi(degree=5)
+    for _ in range(4):
+        game.move_history.add_move('kivi')
+    game.update_matrix(game.move_history, 'paperi')
+    
+    move_history_key = tuple(game.move_history.get_last_moves(5))
+    assert 'paperi' in game.matrix[move_history_key], "Matriisin pitäisi päivittyä pelaajan viimeksi pelatulla valinnalla."
+    assert game.matrix[move_history_key]['paperi'] > 1/3, "Paperin todennnäköisyys pitäisi nousta, kun pelaaja valitsee sen."
+
+#testataan toimiiko tekoäly vaikka aste ei ole vielä 5, tätä testiä pitäisi vielä parantaa
+def test_degree():
+    game = KiviSaksetPaperi(degree=5)
+    for _ in range(2):
+        game.move_history.add_move('kivi')
+    
+    ai_choice = game.get_ai_choice()
+    
+    assert ai_choice in game.choices, "Tekoälyn pitäisi silti tehdä päätös, vaikka liikehistoria ei yllä asteisiin (5)."
+
+#testataan reagoiko tekoäly jos pelaaja valitsee pelkästään kiveä
+def test_repeat_kivi():
+    game = KiviSaksetPaperi(degree=5)
+
+    for _ in range(10):
+        game.move_history.add_move('kivi')
+        game.update_matrix(game.move_history, 'kivi')
+
+    ai_choice = game.get_ai_choice()
+    
+    assert ai_choice == 'paperi', "Tekoälyn pitäisi valita paperi voittaakseen."
+
+#testataan ettei tekoäly tee satunnaisia valintoja kun aste on saavutettu
+def test_ai_random():
+    game = KiviSaksetPaperi(degree=10)
+    
+    #simuloidaan satunnaisesti pelaajan liikkeitä
+    for move in ['kivi', 'sakset', 'paperi', 'kivi', 'paperi']:
+        game.move_history.add_move(move)
+    game.update_matrix(game.move_history, 'sakset')
+    
+    ai_choice = game.get_ai_choice()
+
+    assert ai_choice != random.choice(game.choices), "Tekoälyn ei pitäisi tehdä satunnaista valintaajos historia on riittämätön"
