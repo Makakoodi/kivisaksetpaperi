@@ -2,7 +2,7 @@ import random
 from collections import deque
 
 class KiviSaksetPaperi:
-    def __init__(self, degree=10):
+    def __init__(self, degree=4):
         self.choices = ['kivi', 'paperi', 'sakset']
         self.player_score = 0
         self.ai_score = 0
@@ -112,5 +112,5 @@ class MoveHistory:
             
 
 if __name__ == "__main__":
-    game = KiviSaksetPaperi(degree=10) #annetaan markovin ketjun asteeksi 10 niinkuin aiheenvalinnan linkissä
+    game = KiviSaksetPaperi(degree=4) #annetaan markovin ketjun asteeksi 10 niinkuin aiheenvalinnan linkissä
     game.play()
