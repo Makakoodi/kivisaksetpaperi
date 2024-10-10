@@ -7,7 +7,7 @@ from src.game import KiviSaksetPaperi
 def test_player_wins():
     game = KiviSaksetPaperi()
     result = game.get_winner('kivi', 'sakset')
-    assert result == 'Pelaaja voitti!', "Pelaajan pitäisi voittaa kivi vastaab sakset tilanteessa"
+    assert result == 'Pelaaja voitti!', "Pelaajan pitäisi voittaa kivi vastaan sakset tilanteessa"
 
 #Testataan tekoälyn voittoa
 def test_ai_wins():
@@ -56,24 +56,32 @@ def test_quit(monkeypatch):
 
 
 
-#uusia testejä tekoälyn toimivuutta varten
+#tekoälyn testausta
 
 #matriisin päivitys joka kierroksen jälkeen
 def test_matrix_updated():
-    game = KiviSaksetPaperi(degree=5)
-    for _ in range(4):
-        game.move_history.add_move('kivi')
-    game.update_matrix(game.move_history, 'paperi')
+    game = KiviSaksetPaperi(degree=2)
     
-    move_history_key = tuple(game.move_history.get_last_moves(5))
-    assert 'paperi' in game.matrix[move_history_key], "Matriisin pitäisi päivittyä pelaajan viimeksi pelatulla valinnalla."
-    assert game.matrix[move_history_key]['paperi'] > 1/3, "Paperin todennnäköisyys pitäisi nousta, kun pelaaja valitsee sen."
+    # Lisää siirtohistoria
+    game.move_history.add_move('kivi')
+    game.move_history.add_move('kivi')   
+    game.move_history.add_move('paperi')
+    game.move_history.add_move('paperi')
+    game.move_history.add_move('sakset')
+    game.move_history.add_move('paperi')
+    game.move_history.add_move('sakset')
+
+    # Tarkista, että viimeisimmät siirrot ovat tallennettu oikein
+    move_history_key = tuple(game.move_history.history[-2:])
+    
+    assert 'paperi' in game.move_history.transition_matrix[move_history_key], "Matriisin pitäisi päivittyä pelaajan viimeksi pelatulla valinnalla."
+    assert game.move_history.transition_matrix[move_history_key]['paperi'] > 1/3, "Paperin todennäköisyyden pitäisi nousta, kun pelaaja valitsee sen."
 
 #testataan toimiiko tekoäly vaikka aste ei ole vielä 5, tätä testiä pitäisi vielä parantaa
 def test_degree():
-    game = KiviSaksetPaperi(degree=5)
-    for _ in range(2):
-        game.move_history.add_move('kivi')
+    game = KiviSaksetPaperi(degree=3)
+    game.move_history.add_move('kivi')
+    game.move_history.add_move('sakset')
     
     ai_choice = game.get_ai_choice()
     
@@ -82,24 +90,40 @@ def test_degree():
 #testataan reagoiko tekoäly jos pelaaja valitsee pelkästään kiveä
 def test_repeat_kivi():
     game = KiviSaksetPaperi(degree=5)
-
     for _ in range(10):
         game.move_history.add_move('kivi')
-        game.update_matrix(game.move_history, 'kivi')
-
-    ai_choice = game.get_ai_choice()
-    
+        game.move_history.add_move('kivi')        
+    game.move_history.add_move('kivi')
+    ai_choice = game.get_ai_choice()    
     assert ai_choice == 'paperi', "Tekoälyn pitäisi valita paperi voittaakseen."
 
 #testataan ettei tekoäly tee satunnaisia valintoja kun aste on saavutettu
-def test_ai_random():
-    game = KiviSaksetPaperi(degree=10)
+def test_ai_not_random_when_history_sufficient():
+    game = KiviSaksetPaperi(degree=2)
     
-    #simuloidaan satunnaisesti pelaajan liikkeitä
-    for move in ['kivi', 'sakset', 'paperi', 'kivi', 'paperi']:
-        game.move_history.add_move(move)
-    game.update_matrix(game.move_history, 'sakset')
+    # Simuloidaan pelaajan liikkeitä
+    game.move_history.add_move('kivi')
+    game.move_history.add_move('kivi')
+    game.move_history.add_move('kivi')
+    game.move_history.add_move('kivi')
     
+    # Ennusta siirto
     ai_choice = game.get_ai_choice()
+    
+    assert ai_choice == 'paperi', "Tekoälyn pitäisi valita paperi voittaakseen kiven."
 
-    assert ai_choice != random.choice(game.choices), "Tekoälyn ei pitäisi tehdä satunnaista valintaajos historia on riittämätön"
+def test_high_degree_markov_chain():
+    game = KiviSaksetPaperi(degree=3)
+    
+    # Simuloidaan pelaajan liikkeitä: 'kivi', 'paperi', 'sakset', 'kivi', 'paperi', 'sakset'
+    moves = ['kivi', 'paperi', 'sakset', 'kivi', 'paperi', 'sakset']
+    for move in moves:
+        game.move_history.add_move(move)
+    
+    # Ennusta seuraava siirto
+    ai_choice = game.get_ai_choice()
+    
+    # Pelaajan viimeiset kolme siirtoa: 'kivi', 'paperi', 'sakset'
+    # Ennustetaan seuraava siirto. Oletetaan, että siirtymämatriisissa ei ole vielä tietoa, joten tekoäly voi tehdä valinnan.
+    # Tässä yksinkertaisesti tarkistetaan, että valinta on validi
+    assert ai_choice in game.choices, "Tekoälyn valinnan tulee olla yksi validista vaihtoehdoista."
