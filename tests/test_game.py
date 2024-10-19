@@ -71,7 +71,7 @@ def test_matrix_updated():
     game.move_history.add_move('paperi')
     game.move_history.add_move('sakset')
 
-    # Tarkista, että viimeisimmät siirrot ovat tallennettu oikein
+    
     move_history_key = tuple(game.move_history.history[-2:])
     
     assert 'paperi' in game.move_history.transition_matrix[move_history_key], "Matriisin pitäisi päivittyä pelaajan viimeksi pelatulla valinnalla."
@@ -85,15 +85,14 @@ def test_degree():
     
     ai_choice = game.get_ai_choice()
     
-    assert ai_choice in game.choices, "Tekoälyn pitäisi silti tehdä päätös, vaikka liikehistoria ei yllä asteisiin (5)."
+    assert ai_choice in game.choices, "Tekoälyn pitäisi silti tehdä päätös, vaikka liikehistoria ei yllä asteisiin."
 
 #testataan reagoiko tekoäly jos pelaaja valitsee pelkästään kiveä
 def test_repeat_kivi():
     game = KiviSaksetPaperi(degree=5)
     for _ in range(10):
         game.move_history.add_move('kivi')
-        game.move_history.add_move('kivi')        
-    game.move_history.add_move('kivi')
+        
     ai_choice = game.get_ai_choice()    
     assert ai_choice == 'paperi', "Tekoälyn pitäisi valita paperi voittaakseen."
 
@@ -115,15 +114,13 @@ def test_ai_not_random_when_history_sufficient():
 def test_high_degree_markov_chain():
     game = KiviSaksetPaperi(degree=3)
     
-    # Simuloidaan pelaajan liikkeitä: 'kivi', 'paperi', 'sakset', 'kivi', 'paperi', 'sakset'
+    #simuloidaan pelaajan valintoja
     moves = ['kivi', 'paperi', 'sakset', 'kivi', 'paperi', 'sakset']
     for move in moves:
         game.move_history.add_move(move)
     
-    # Ennusta seuraava siirto
+    #ennusta seuraava siirto
     ai_choice = game.get_ai_choice()
     
-    # Pelaajan viimeiset kolme siirtoa: 'kivi', 'paperi', 'sakset'
-    # Ennustetaan seuraava siirto. Oletetaan, että siirtymämatriisissa ei ole vielä tietoa, joten tekoäly voi tehdä valinnan.
-    # Tässä yksinkertaisesti tarkistetaan, että valinta on validi
+    
     assert ai_choice in game.choices, "Tekoälyn valinnan tulee olla yksi validista vaihtoehdoista."
