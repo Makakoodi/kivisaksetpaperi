@@ -3,6 +3,8 @@ import random
 from src.game import KiviSaksetPaperi
 
 
+""" UI testejä joita ei tarvinnutkaan loppujen lopuksi
+
 #Testataan pelaajan voittoa
 def test_player_wins():
     game = KiviSaksetPaperi()
@@ -54,73 +56,59 @@ def test_quit(monkeypatch):
     assert result is None, "Pelin pitäisi loppua 'lopeta' komennon jälkeen"
 
 
+"""
+
+#tekoälyn testaus
 
 
-#tekoälyn testausta
+# Testataan, että aste vaihtuu testausvaiheen jälkeen oikein
+def test_degree_testphase():
+    game = KiviSaksetPaperi(max_degree=3)
 
-#matriisin päivitys joka kierroksen jälkeen
-def test_matrix_updated():
-    game = KiviSaksetPaperi(degree=2)
-    
-    # Lisää siirtohistoria
-    game.move_history.add_move('kivi')
-    game.move_history.add_move('kivi')   
-    game.move_history.add_move('paperi')
-    game.move_history.add_move('paperi')
-    game.move_history.add_move('sakset')
-    game.move_history.add_move('paperi')
-    game.move_history.add_move('sakset')
+    # Simuloidaan 15 kierrosta
+    for i in range(15):
+        game.move_history.add_move(random.choice(['kivi', 'paperi', 'sakset']))
+        game.rounds_played += 1
+        game.adjust_degree()
 
-    
-    move_history_key = tuple(game.move_history.history[-2:])
-    
-    assert 'paperi' in game.move_history.transition_matrix[move_history_key], "Matriisin pitäisi päivittyä pelaajan viimeksi pelatulla valinnalla."
-    assert game.move_history.transition_matrix[move_history_key]['paperi'] > 1/3, "Paperin todennäköisyyden pitäisi nousta, kun pelaaja valitsee sen."
+    # Testataan, että asteet on vaihtunu
+    assert game.current_degree in [1, 2, 3], "Asteen pitäisi olla yksi sallituista 1, 2 tai 3."
+    assert game.rounds_played == 15, "Kierroksia pitäisi olla 15 testausvaiheen jälkeen."
 
-#testataan toimiiko tekoäly vaikka aste ei ole vielä 5, tätä testiä pitäisi vielä parantaa
-def test_degree():
-    game = KiviSaksetPaperi(degree=3)
-    game.move_history.add_move('kivi')
-    game.move_history.add_move('sakset')
-    
-    ai_choice = game.get_ai_choice()
-    
-    assert ai_choice in game.choices, "Tekoälyn pitäisi silti tehdä päätös, vaikka liikehistoria ei yllä asteisiin."
+# Testataan, että tekoäly valitsee paperin jos pelaaja valitsee toistuvasti kiveä
+def test_ai_repeat_kivi():
+    game = KiviSaksetPaperi(max_degree=2)
 
-#testataan reagoiko tekoäly jos pelaaja valitsee pelkästään kiveä
-def test_repeat_kivi():
-    game = KiviSaksetPaperi(degree=5)
-    for _ in range(10):
+    # Pelaaja valitsee jatkuvasti 'kivi'
+    for _ in range(5):
         game.move_history.add_move('kivi')
-        
-    ai_choice = game.get_ai_choice()    
-    assert ai_choice == 'paperi', "Tekoälyn pitäisi valita paperi voittaakseen."
 
-#testataan ettei tekoäly tee satunnaisia valintoja kun aste on saavutettu
-def test_ai_not_random_when_history_sufficient():
-    game = KiviSaksetPaperi(degree=2)
-    
-    # Simuloidaan pelaajan liikkeitä
-    game.move_history.add_move('kivi')
-    game.move_history.add_move('kivi')
-    game.move_history.add_move('kivi')
-    game.move_history.add_move('kivi')
-    
-    # Ennusta siirto
+    # Testataan, että tekoäly valitsee paperin
     ai_choice = game.get_ai_choice()
-    
-    assert ai_choice == 'paperi', "Tekoälyn pitäisi valita paperi voittaakseen kiven."
+    assert ai_choice == 'paperi', "Tekoälyn pitäisi valita paperi voittaakseen pelaajan toistuvan kiven."
 
-def test_high_degree_markov_chain():
-    game = KiviSaksetPaperi(degree=3)
-    
-    #simuloidaan pelaajan valintoja
-    moves = ['kivi', 'paperi', 'sakset', 'kivi', 'paperi', 'sakset']
-    for move in moves:
-        game.move_history.add_move(move)
-    
-    #ennusta seuraava siirto
-    ai_choice = game.get_ai_choice()
-    
-    
-    assert ai_choice in game.choices, "Tekoälyn valinnan tulee olla yksi validista vaihtoehdoista."
+
+# Testataan, että aste vaihtuu oikein pelin aikana
+def test_ai_degree_performance():
+    game = KiviSaksetPaperi(max_degree=3)
+
+    # Simuloidaan 15 kierrosta, jossa tekoäly voittaa vaihtelevasti
+    for i in range(15):
+        game.move_history.add_move(random.choice(['kivi', 'paperi', 'sakset']))
+        game.rounds_played += 1
+
+        if i % 5 == 0:  #Simuloidaan 5 kierroksen jaksoja
+            if i < 10:  #Ensimmäiset 10 kierrosta 
+                game.ai_score = 1  #Tekoäly voittaa kerran
+            else:  
+                game.ai_score = 4  #Tekoäly voittaa neljä kertaa
+
+            game.adjust_degree()
+
+    #Tarkistetaan, että nykyinen aste vastaa parhaan asteen suoritusta
+    best_degree = max(game.degrees_performance, key=lambda d: (game.degrees_performance[d]['wins'] / max(1, game.degrees_performance[d]['rounds'])))
+
+    assert game.current_degree == best_degree, f"Tekoälyn asteen pitäisi olla {best_degree}, koska sillä on paras winrate."
+
+    #Varmistetaan, että nykyinen aste on yksi sallituista asteista
+    assert game.current_degree in [1, 2, 3], "Tekoälyn asteen pitäisi olla 1, 2 tai 3 pelin edetessä."

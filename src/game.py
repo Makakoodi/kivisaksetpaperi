@@ -13,45 +13,52 @@ class KiviSaksetPaperi:
         self.current_degree = 1  #markovin ketju alkaa 1 asteella
         self.move_history = MoveHistory(degree=self.current_degree)  #deque korvattu omalla MoveHistory luokalla alempana
         self.rounds_played = 0
-        self.degrees_performance = {i: {'wins': 0, 'rounds': 0} for i in range(1, self.max_degree + 1)}
+        self.degrees_performance = {i: {'wins': 1, 'rounds': 2} for i in range(1, self.max_degree + 1)}
         
 
     def adjust_degree(self):
-        # 5 kierroksen välein tarkistus
+        #5 kierroksen välein tarkistus
         if self.rounds_played > 0 and self.rounds_played % 5 == 0:
             #lasketaan tekoälyn voittoprosentti viimeisten 5 kierroksen ajalta
             ai_win_rate = (self.ai_score / 5)
-            print("AI winrate now = ", ai_win_rate)
+            print(f"DEBUG: AI winrate viimeisten 5 kierroksen aikana = {ai_win_rate:.2f}")
             
-            #päivitetään nykyasteen onnistuminen
-            if self.current_degree not in self.degrees_performance:
-                self.degrees_performance[self.current_degree] = {'wins': 0, 'rounds': 0}
-
-           
+            #päivitetään nykyisen asteen winrate
             self.degrees_performance[self.current_degree]['wins'] += self.ai_score
-            self.degrees_performance[self.current_degree]['rounds'] += 5  #koska päivitys tehdään 5 kierroksen välein
+            self.degrees_performance[self.current_degree]['rounds'] += 5
             
-            #etsitään paras aste
-            best_degree = max(
-                self.degrees_performance, key=lambda d: (self.degrees_performance[d]['wins'] / max(1, self.degrees_performance[d]['rounds']))  
-            )
-            
-            
-            #vaihdetaan parhaaseen asteeseen 
-            if ai_win_rate < 0.8 :         
-                self.current_degree = best_degree
-                self.move_history.degree = self.current_degree
-                print(f"\nParas aste nyt: {self.current_degree}.\n")
-            
-            #nollataan tekoälyn pisteet
+            #nollataan tekoälyn pisteet seuraavaa 5 kierrosta varten
             self.ai_score = 0
-    
+            
+            #testausvaihe pelin alussa (pitäisi olla 15 kierrosta, mutta tällä hetkellä 20)
+            if self.rounds_played <= 15:
+                if self.rounds_played < 15:
+                    next_degree = (self.current_degree % self.max_degree) + 1
+                    print(f"\nDEBUG: Kokeillaan seuraavaa astetta: {next_degree}.\n")
+                    self.current_degree = next_degree
+                    self.move_history.degree = self.current_degree
+                else:
+                    print("\nDEBUG: Testausvaihe valmis. Arvioidaan paras aste.\n")
+            else:
+                #arvioidaan paras aste
+                best_degree = max(self.degrees_performance, key=lambda d: (self.degrees_performance[d]['wins'] / max(1, self.degrees_performance[d]['rounds'])))
+                
+                #asteen vaihto parempaan jos nykyinen on huonompi
+                current_winrate = self.degrees_performance[self.current_degree]['wins'] / max(1, self.degrees_performance[self.current_degree]['rounds'])
+                if best_degree != self.current_degree or current_winrate < 0.6:
+                    print(f"\nDEBUG: Paras aste löydetty: {best_degree}, vaihdetaan siihen.\n")
+                    self.current_degree = best_degree
+                    self.move_history.degree = self.current_degree
+                else:
+                    print("DEBUG: Paras aste on käytössä.")
+            
+        
 
     
     def display_transition_matrix(self):
         #matriisin tulostus testausta varten
         
-        print("\nCurrent Transition Matrix:")
+        print("\nDEBUG: Current Transition Matrix:")
         for move, transitions in self.move_history.transition_matrix.items():
             print(f"  {move}: {transitions}")
         print()
