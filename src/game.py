@@ -23,35 +23,39 @@ class KiviSaksetPaperi:
             ai_win_rate = (self.ai_score / 5)
             print(f"DEBUG: AI winrate viimeisten 5 kierroksen aikana = {ai_win_rate:.2f}")
             
-            #päivitetään nykyisen asteen winrate
+            #päivitetään nykyisen asteen winrate viimeisten 5 kierroksen tulosten mukaan
             self.degrees_performance[self.current_degree]['wins'] += self.ai_score
             self.degrees_performance[self.current_degree]['rounds'] += 5
             
-            #nollataan tekoälyn pisteet seuraavaa 5 kierrosta varten
+            #päivitetään winrate suoraan
+            self.degrees_performance[self.current_degree]['winrate'] = self.degrees_performance[self.current_degree]['wins'] / max(1, self.degrees_performance[self.current_degree]['rounds'])
+            
+            
             self.ai_score = 0
             
-            #testausvaihe pelin alussa (pitäisi olla 15 kierrosta, mutta tällä hetkellä 20)
+            #testausvaihe pelin alussa (15 kierrosta)
             if self.rounds_played <= 15:
                 if self.rounds_played < 15:
                     next_degree = (self.current_degree % self.max_degree) + 1
                     print(f"\nDEBUG: Kokeillaan seuraavaa astetta: {next_degree}.\n")
                     self.current_degree = next_degree
                     self.move_history.degree = self.current_degree
-                else:
-                    print("\nDEBUG: Testausvaihe valmis. Arvioidaan paras aste.\n")
+                
             else:
-                #arvioidaan paras aste
+                #parhaimman asteen arviointi
                 best_degree = max(self.degrees_performance, key=lambda d: (self.degrees_performance[d]['wins'] / max(1, self.degrees_performance[d]['rounds'])))
                 
-                #asteen vaihto parempaan jos nykyinen on huonompi
+                #asteen vaihto jos tarvitsee
+                best_winrate = self.degrees_performance[best_degree]['wins'] / max(1, self.degrees_performance[best_degree]['rounds'])
                 current_winrate = self.degrees_performance[self.current_degree]['wins'] / max(1, self.degrees_performance[self.current_degree]['rounds'])
-                if best_degree != self.current_degree or current_winrate < 0.6:
-                    print(f"\nDEBUG: Paras aste löydetty: {best_degree}, vaihdetaan siihen.\n")
+                
+                if best_degree != self.current_degree or current_winrate < best_winrate:
+                    print(f"\nDEBUG: Paras aste löydetty: {best_degree} ({best_winrate:.2f} winrate), vaihdetaan siihen.\n")
                     self.current_degree = best_degree
                     self.move_history.degree = self.current_degree
                 else:
-                    print("DEBUG: Paras aste on käytössä.")
-            
+                    print(f"DEBUG: Nykyinen aste {self.current_degree} pysyy käytössä, koska sen winrate ({current_winrate:.2f}) on yhtä hyvä tai parempi.")
+
         
 
     
