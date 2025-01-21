@@ -13,8 +13,9 @@ class KiviSaksetPaperi:
     def get_ai_choice(self):
         #ennustetaan seuraava liike kaikkien asteiden perusteella ja valitaan parhaan probabiliteetin omaava liike.
         
-        predicted_move = self.move_history.predict_next_move()
+        predicted_move, best_degree, best_probability = self.move_history.predict_next_move()
 
+        print(f"DEBUG: Paras aste: {best_degree}, ennustettu siirto: {predicted_move}, todennäköisyys: {best_probability:.2f}")
         
         if predicted_move == 'kivi':
             return 'paperi'
@@ -72,40 +73,51 @@ class MoveHistory:
         self.history.append(move)
         for degree in range(1, self.max_degree + 1):
             if len(self.history) >= degree:
-                sequence = list(self.history)[-degree:]
-                self.transition_matrices[degree][tuple(sequence[:-1])][sequence[-1]] += 1
+                sequence = tuple(self.history)[-degree:]
+                if degree == 1:
+                    # 1-asteinen tallentaa yksittäisen siirron
+                    self.transition_matrices[degree][sequence[0]][move] += 1
+                else:
+                    # Muut asteet tallentavat sekvenssejä
+                    self.transition_matrices[degree][tuple(sequence[:-1])][sequence[-1]] += 1
 
     def predict_next_move(self):
         #ennustetaan seuraava liike tarkistamalla kaikki asteet ja valitsemalla paras probabiliteetti
         
         best_move = None
         best_probability = 0
+        best_degree = None
 
         for degree in range(1, self.max_degree + 1):
             if len(self.history) < degree:
                 continue  #skipataan asteet ilman riittävää historiaa
 
-            sequence = list(self.history)[-degree:]     #haetaan pelaajan viimeiset siirrot asteen mukaisesti
+            sequence = tuple(self.history)[-degree:]     #haetaan pelaajan viimeiset siirrot asteen mukaisesti
             matrix = self.transition_matrices[degree]   #haetaan nykyiselle asteelle siirtomatriisi
 
-            if tuple(sequence[:-1]) not in matrix:
-                continue  #jos sekvenssi ei sisällä siirtymiä niin skipataan
+            if degree == 1:
+                key = sequence[0]
+            else:
+                key = sequence[:-1]
 
-            #haetaan probabiliteetti seuraavalle liikkeelle
-            transitions = matrix[tuple(sequence[:-1])]
+            if key not in matrix:
+                continue  #skipataan jos sekvenssiä ei ole tallennettu
+
+            transitions = matrix[key]
             total = sum(transitions.values())
             probabilities = {move: count / total for move, count in transitions.items()}
 
-            #etsitään korkeimman probabiliteetin omaava liike tämän hetkiselle asteelle
-            probs_move, probability = max(probabilities.items(), key=lambda item: item[1])
+            #valitaan korkein todennäköisyys
+            most_likely_move, probability = max(probabilities.items(), key=lambda item: item[1])
             if probability > best_probability:
                 best_probability = probability
-                best_move = probs_move
+                best_move = most_likely_move
+                best_degree = degree
 
         if best_move:
-            return best_move
+            return best_move, best_degree, best_probability
         
-        return random.choice(['kivi', 'paperi', 'sakset'])
+        return random.choice(['kivi', 'paperi', 'sakset']), None, 0.0
     
     def display_transition_matrices(self):
         #DEBUG näyttää matriisin joka kierroksen jälkeen jotta nähdään päivittyykö uudet parit
